@@ -12,13 +12,13 @@ class IDebugLog
 {
 	public:
 							IDebugLog();
-							IDebugLog(const char * name);
+							explicit IDebugLog(const char * name);
 							~IDebugLog();
 
 		static void			Open(const char * path);
 		static void			OpenRelative(int folderID, const char * relPath);
 
-		static void			Message(const char * message, const char * source = NULL);
+		static void			Message(const char * message, const char * source = nullptr);
 		static void			FormattedMessage(const char * fmt, ...);
 		static void			FormattedMessage(const char * fmt, va_list args);
 
@@ -59,6 +59,7 @@ class IDebugLog
 		static int			RoundToTab(int spaces);
 
 		static FILE			* logFile;			//!< the output file
+		static char			cPath[_MAX_PATH];	//Path to the Logs Folder
 
 		static char			sourceBuf[16];		//!< name of current source, used in prefix
 		static char			headerText[16];		//!< current text to use as line prefix

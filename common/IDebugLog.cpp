@@ -3,7 +3,8 @@
 #include "common/IFileStream.h"
 #include <shlobj.h>
 
-std::FILE			* IDebugLog::logFile = NULL;
+std::FILE			* IDebugLog::logFile = nullptr;
+char				IDebugLog::cPath[MAX_PATH] = { 0 };
 char				IDebugLog::sourceBuf[16] = { 0 };
 char				IDebugLog::headerText[16] = { 0 };
 char				IDebugLog::formatBuf[8192] = { 0 };
@@ -15,13 +16,11 @@ bool				IDebugLog::autoFlush = true;
 IDebugLog::LogLevel	IDebugLog::logLevel = IDebugLog::kLevel_DebugMessage;
 IDebugLog::LogLevel	IDebugLog::printLevel = IDebugLog::kLevel_Message;
 
-IDebugLog::IDebugLog()
-{
-	//
-}
+IDebugLog::IDebugLog() = default;
 
 IDebugLog::IDebugLog(const char * name)
 {
+	GetCurrentDirectoryA(MAX_PATH, IDebugLog::cPath); // Find CWD (e.g. C:/Steam/SteamApps/Common/Fallout New Vegas)
 	Open(name);
 }
 
@@ -33,20 +32,35 @@ IDebugLog::~IDebugLog()
 
 void IDebugLog::Open(const char * path)
 {
-	logFile = _fsopen(path, "w", _SH_DENYWR);
-
-	if(!logFile)
-	{
-		UInt32	id = 0;
-		char	name[1024];
-
+	char name[1024] = { 0 };
+	sprintf_s(name, sizeof(name), "%s\\%s\\%s", IDebugLog::cPath, "Logs", path); // NV/Logs/File
+	logFile = _fsopen(name, "w", _SH_DENYWR);
+	if(!logFile) {
+		UInt32 id = 0;
 		do
 		{
-			sprintf_s(name, sizeof(name), "%s%d", path, id);
-			id++;
+			// On first failure, create folder.
+			if (id == 0) {
+				char cLogDir[1024] = { 0 };
+				sprintf_s(cLogDir, sizeof(cLogDir), "%s\\%s", IDebugLog::cPath, "Logs"); // NV/Logs
+				if (!(CreateDirectoryA(cLogDir, nullptr) || ERROR_ALREADY_EXISTS == GetLastError()))
+				{
+					return; // Failed to create directory.
+				}
+				// Try to create file
+				sprintf_s(name, sizeof(name), "%s\\%s\\%s", IDebugLog::cPath, "Logs", path);
+				id++;
+				logFile = nullptr;
+				logFile = _fsopen(name, "w", _SH_DENYWR);
+			}
+			else {
+				// Cannot open file, attempt again with file+ID.
+				sprintf_s(name, sizeof(name), "%s\\%s\\%s%d", IDebugLog::cPath, "Logs", path, id); //File Not Open?
+				id++;
 
-			logFile = NULL;
-			logFile = _fsopen(name, "w", _SH_DENYWR);
+				logFile = nullptr;
+				logFile = _fsopen(name, "w", _SH_DENYWR);
+			}
 		}
 		while(!logFile && (id < 5));
 	}
